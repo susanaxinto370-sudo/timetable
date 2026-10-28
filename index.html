@@ -235,7 +235,7 @@ footer b{color:var(--ink)}
 
   <header class="topbar">
     <div>
-      <h1>📅 我的课表</h1>
+      <h1 id="pageTitle">📅 我的课表</h1>
       <div class="sub" id="termLine"></div>
     </div>
     <div class="today-chip" id="todayChip"></div>
@@ -277,8 +277,8 @@ footer b{color:var(--ink)}
 
   <footer>
     <div><b>节次时间</b>：1-2节 08:00 · 3-4节 10:00 · 5-6节 14:00 · 7-8节 16:10 · 9-10节 19:30</div>
-    <div>自修课程（高等数学、概率论与数理统计、大学物理、线性代数）默认隐藏，可用上方开关显示。大学物理实验（实验课）正常显示。</div>
-    <div>实验课教室来自实验安排表：自控、热流体→北二楼（房间带B前缀），机设→西二楼西，工程力学→中楼（需课前联系刘冉老师）；燃烧学实验教室暂缺。</div>
+    <div>自修课程（高等数学、概率论与数理统计、大学物理、线性代数）默认隐藏，可用上方开关显示。<span id="physicsLabNote">大学物理实验（实验课）正常显示。</span></div>
+    <div id="labsLocationNote">实验课教室来自实验安排表：自控、热流体→北二楼（房间带B前缀），机设→西二楼西，工程力学→中楼（需课前联系刘冉老师）；燃烧学实验教室暂缺。</div>
     <div>课表信息如有变动，用文本编辑器打开本文件，修改顶部「课程数据」区域即可。</div>
   </footer>
 </div>
@@ -456,6 +456,13 @@ const COURSES = [
  * 以下为程序逻辑，一般不需要修改
  * ============================================================ */
 const $ = id => document.getElementById(id);
+const HIDE_LABS = new URLSearchParams(window.location.search).get('no_labs') === '1';
+if(HIDE_LABS){
+  document.title = '我的课表 · 不含实验课';
+  $('pageTitle').textContent = '📅 我的课表（无实验课）';
+  $('physicsLabNote').hidden = true;
+  $('labsLocationNote').hidden = true;
+}
 const listView = $('listView'), gridView = $('gridView'), pillsEl = $('weekPills'),
       weekLabel = $('weekLabel'), weekNote = $('weekNote'), todayCard = $('todayCard'),
       todayChip = $('todayChip'), overviewBody = $('overviewBody'),
@@ -537,7 +544,8 @@ const state = {
   showSelf: store.showSelf,
 };
 
-function visibleCourses(){ return COURSES.filter(c => !c.selfStudy || state.showSelf); }
+function availableCourses(){ return HIDE_LABS ? COURSES.filter(c => !c.name.includes('实验')) : COURSES; }
+function visibleCourses(){ return availableCourses().filter(c => !c.selfStudy || state.showSelf); }
 function sessionsInWeek(w){
   const out = [];
   visibleCourses().forEach(c => c.sessions.forEach(s=>{
@@ -708,8 +716,8 @@ function renderOverview(){
     '<div class="ov-sess">' +
       c.sessions.map(s => DAY_NAMES[s.d] + ' ' + sessionLabel(s) + (s.time ? ' ' + sessionTime(s) : '') + ' · ' + fmtWeeks(s.weekSet)).join('<br>') +
     '</div></div>';
-  const real = COURSES.filter(c => !c.selfStudy);
-  const self = COURSES.filter(c => c.selfStudy);
+  const real = availableCourses().filter(c => !c.selfStudy);
+  const self = availableCourses().filter(c => c.selfStudy);
   overviewBody.innerHTML =
     '<div class="ov-grid">' + real.map(mk).join('') + '</div>' +
     (self.length ? '<div class="ov-sub">自修课程（默认隐藏）</div><div class="ov-grid dim">' + self.map(mk).join('') + '</div>' : '');
