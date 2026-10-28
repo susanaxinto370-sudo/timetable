@@ -297,6 +297,7 @@ footer b{color:var(--ink)}
  *   room: 上课教室
  *   time: 可选的准确起止时间（分钟数）；p 仅用于确定网格位置
  *   label: 可选的时间描述，代替按节次显示
+ *   makeup: 可选，标记补课
  * ============================================================ */
 const CONFIG = {
   term : '2026–2027学年 第一学期 · 兴庆校区',
@@ -356,6 +357,7 @@ const COURSES = [
   { name:'工程力学I', teacher:'翟崇朴', color:'#9333ea', selfStudy:false,
     sessions:[
       {d:2, p:[7,8], w:'1-12', room:'东1东-326'},
+      {d:2, p:[7,8], w:'13', room:'东1东-326', makeup:true},
       {d:4, p:[3,4], w:'1-16', room:'东1东-326'},
     ] },
 
@@ -371,7 +373,9 @@ const COURSES = [
   { name:'机械设计基础I', teacher:'施虎', color:'#db2777', selfStudy:false,
     sessions:[
       {d:4, p:[9,10], w:'1-7,8-14', room:'中2-2247'},
+      {d:4, p:[9,10], w:'15', room:'中2-2247', makeup:true},
       {d:7, p:[3,4],  w:'1-7,8-14', room:'中2-2247'},
+      {d:7, p:[3,4],  w:'15', room:'中2-2247', makeup:true},
     ] },
 
   { name:'测控实习（第1分组）', teacher:'王、张、黄（分组指导）', color:'#475569', selfStudy:false,
@@ -508,7 +512,7 @@ function pTime(p){ return min2str(PERIOD_MIN[p[0]][0]) + '–' + min2str(PERIOD_
 function sessionStart(s){ return s.time ? s.time[0] : PERIOD_MIN[s.p[0]][0]; }
 function sessionEnd(s){ return s.time ? s.time[1] : PERIOD_MIN[s.p[1]][1]; }
 function sessionTime(s){ return s.time ? min2str(s.time[0]) + '–' + min2str(s.time[1]) : pTime(s.p); }
-function sessionLabel(s){ return s.label || pLabel(s.p); }
+function sessionLabel(s){ return (s.label || pLabel(s.p)) + (s.makeup ? '（补课）' : ''); }
 
 function todayInfo(){
   const now = new Date();
@@ -680,7 +684,7 @@ function renderGrid(){
       const conts  = sess.filter(x => x.s.d === d && blockOf(x.s.p[0]) < bi && blockOf(x.s.p[1]) >= bi);
       let cell = starts.map(x=>
         '<div class="g-card" style="--c:' + x.course.color + '" data-course="' + x.course.id + '">' +
-        '<div class="g-name">' + x.course.name + '</div>' +
+        '<div class="g-name">' + x.course.name + (x.s.makeup ? '（补课）' : '') + '</div>' +
         '<div class="g-room">' + x.s.room + '</div>' +
         (x.s.time ? '<div class="g-span">' + sessionTime(x.s) + '</div>' :
           (x.s.p[1] > x.s.p[0] + 1 ? '<div class="g-span">至第' + x.s.p[1] + '节</div>' : '')) +
