@@ -295,6 +295,8 @@ footer b{color:var(--ink)}
  *   p  : 节次区间 [起始节, 结束节]，如 [1,2] 表示第1-2节
  *   w  : 周次，支持 "1-10"、"3,5-15"、"2-16双"（双周）、"2-16单"
  *   room: 上课教室
+ *   time: 可选的准确起止时间（分钟数）；p 仅用于确定网格位置
+ *   label: 可选的时间描述，代替按节次显示
  * ============================================================ */
 const CONFIG = {
   term : '2026–2027学年 第一学期 · 兴庆校区',
@@ -387,13 +389,18 @@ const COURSES = [
     sessions:[
       {d:1, p:[7,8], w:'6', room:'西二楼西106（机构搭接）'},
       {d:3, p:[5,8], w:'6', room:'西二楼西114（缝纫机）'},
-      {d:1, p:[7,8], w:'9', room:'西二楼西105（齿轮范成）'},
+      {d:1, p:[3,4], w:'11', room:'西二楼西105（齿轮范成）'},
     ] },
 
   { name:'燃烧学I · 实验', teacher:'实验课', color:'#dc2626', selfStudy:false,
     sessions:[
       {d:1, p:[1,4], w:'3', room:'见实验安排'},
       {d:5, p:[1,4], w:'9', room:'见实验安排'},
+    ] },
+
+  { name:'电工电子技术-2 · 第二次实验（报告册实验3）', teacher:'实验课', color:'#2563eb', selfStudy:false,
+    sessions:[
+      {d:5, p:[1,4], w:'13', room:'东一楼西108', label:'上午', time:[510,720]},
     ] },
 
   { name:'热流体实验', teacher:'实验课', color:'#d97706', selfStudy:false,
@@ -408,10 +415,10 @@ const COURSES = [
 
   { name:'工程力学I · 实验', teacher:'实验课（课前联系刘冉老师）', color:'#9333ea', selfStudy:false,
     sessions:[
-      {d:3, p:[7,8], w:'5',  room:'中-1106（拉压）'},
-      {d:7, p:[1,2], w:'5',  room:'中-1116（往复机械）'},
-      {d:3, p:[7,8], w:'9',  room:'中-2120（弯曲）'},
-      {d:7, p:[1,2], w:'10', room:'中-2115（弯扭组合）'},
+      {d:3, p:[9,10], w:'5',  room:'中-1116（往复机械）'},
+      {d:2, p:[9,10], w:'6',  room:'中-1106（拉伸压缩）'},
+      {d:6, p:[3,4],  w:'10', room:'中-2120（弯曲）'},
+      {d:7, p:[1,2],  w:'11', room:'中-2115（弯扭组合）'},
     ] },
 
   /* ---------- 自修课程（默认隐藏，可开关显示） ---------- */
@@ -498,6 +505,10 @@ function blockOf(p){ return Math.ceil(p/2) - 1; }        // 节次 → 0..4 行
 function pLabel(p){ return '第' + p[0] + '-' + p[1] + '节'; }
 function min2str(m){ return String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0'); }
 function pTime(p){ return min2str(PERIOD_MIN[p[0]][0]) + '–' + min2str(PERIOD_MIN[p[1]][1]); }
+function sessionStart(s){ return s.time ? s.time[0] : PERIOD_MIN[s.p[0]][0]; }
+function sessionEnd(s){ return s.time ? s.time[1] : PERIOD_MIN[s.p[1]][1]; }
+function sessionTime(s){ return s.time ? min2str(s.time[0]) + '–' + min2str(s.time[1]) : pTime(s.p); }
+function sessionLabel(s){ return s.label || pLabel(s.p); }
 
 function todayInfo(){
   const now = new Date();
@@ -576,13 +587,13 @@ function renderToday(){
     visibleCourses().forEach(c => c.sessions.forEach(s=>{
       if(s.d === ti.dow && s.weekSet.has(ti.week)) sess.push({course:c, s});
     }));
-    sess.sort((a,b)=> a.s.p[0] - b.s.p[0]);
+    sess.sort((a,b)=> sessionStart(a.s) - sessionStart(b.s));
     if(!sess.length){
       inner = '<div class="t-none">今天无课，自由安排 🎉</div>';
     } else {
       let nextAssigned = false;
       inner = sess.map(({course, s})=>{
-        const st = PERIOD_MIN[s.p[0]][0], en = PERIOD_MIN[s.p[1]][1];
+        const st = sessionStart(s), en = sessionEnd(s);
         let badge = '';
         if(ti.minutes >= st && ti.minutes < en){
           badge = '<span class="t-badge live">进行中</span>';
@@ -591,7 +602,7 @@ function renderToday(){
           nextAssigned = true;
         }
         return '<div class="t-row" style="--c:' + course.color + '" data-course="' + course.id + '">' +
-          '<span class="t-time">' + pLabel(s.p) + '<small>' + pTime(s.p) + '</small></span>' +
+          '<span class="t-time">' + sessionLabel(s) + '<small>' + sessionTime(s) + '</small></span>' +
           '<span class="t-name">' + course.name + '</span>' +
           (badge || '<span class="t-room">📍 ' + s.room + '</span>') +
           '</div>';
@@ -612,7 +623,7 @@ function cardHTML(x, isToday){
       (course.selfStudy ? '<i class="self-tag">自修</i>' : '') + '</span>' +
       '<span class="c-weeks">' + fmtWeeks(s.weekSet) + '</span></div>' +
     '<div class="c-room">📍 ' + s.room + '</div>' +
-    '<div class="c-sub">' + pLabel(s.p) + ' · ' + pTime(s.p) +
+    '<div class="c-sub">' + sessionLabel(s) + ' · ' + sessionTime(s) +
       (course.teacher ? ' · ' + course.teacher : '') + '</div>' +
     '</div>';
 }
@@ -635,7 +646,7 @@ function renderList(){
   [...byDay.keys()].sort((a,b)=>a-b).forEach(d=>{
     const date = new Date(monday); date.setDate(date.getDate() + (d-1));
     const isToday = ti.inTerm && ti.week === w && ti.dow === d;
-    const items = byDay.get(d).sort((a,b)=> a.s.p[0] - b.s.p[0]);
+    const items = byDay.get(d).sort((a,b)=> sessionStart(a.s) - sessionStart(b.s));
     html += '<section class="day"><div class="day-head">' +
       '<span class="day-name">' + DAY_NAMES[d] + '</span>' +
       '<span class="day-date">' + fmtDate(date) + '</span>' +
@@ -671,7 +682,8 @@ function renderGrid(){
         '<div class="g-card" style="--c:' + x.course.color + '" data-course="' + x.course.id + '">' +
         '<div class="g-name">' + x.course.name + '</div>' +
         '<div class="g-room">' + x.s.room + '</div>' +
-        (x.s.p[1] > x.s.p[0] + 1 ? '<div class="g-span">至第' + x.s.p[1] + '节</div>' : '') +
+        (x.s.time ? '<div class="g-span">' + sessionTime(x.s) + '</div>' :
+          (x.s.p[1] > x.s.p[0] + 1 ? '<div class="g-span">至第' + x.s.p[1] + '节</div>' : '')) +
         '</div>').join('');
       cell += conts.map(x=>
         '<div class="g-cont" style="--c:' + x.course.color + '">' + x.course.name + '（续）</div>').join('');
@@ -690,7 +702,7 @@ function renderOverview(){
     '<div class="ov-room">📍 ' + [...new Set(c.sessions.map(s => s.room))].join(' / ') + '</div>' +
     (c.teacher ? '<div class="ov-teacher">👤 ' + c.teacher + '</div>' : '') +
     '<div class="ov-sess">' +
-      c.sessions.map(s => DAY_NAMES[s.d] + ' ' + pLabel(s.p) + ' · ' + fmtWeeks(s.weekSet)).join('<br>') +
+      c.sessions.map(s => DAY_NAMES[s.d] + ' ' + sessionLabel(s) + (s.time ? ' ' + sessionTime(s) : '') + ' · ' + fmtWeeks(s.weekSet)).join('<br>') +
     '</div></div>';
   const real = COURSES.filter(c => !c.selfStudy);
   const self = COURSES.filter(c => c.selfStudy);
@@ -709,9 +721,9 @@ function openModal(id){
     '<div class="m-rows">' +
       c.sessions.map(s =>
         '<div class="m-row">' +
-        '<span class="m-when">' + DAY_NAMES[s.d] + ' ' + pLabel(s.p) + '</span>' +
+        '<span class="m-when">' + DAY_NAMES[s.d] + ' ' + sessionLabel(s) + '</span>' +
         '<span class="m-weeks">' + fmtWeeks(s.weekSet) + '</span>' +
-        '<div class="m-room">📍 ' + s.room + ' · ' + pTime(s.p) + '</div>' +
+        '<div class="m-room">📍 ' + s.room + ' · ' + sessionTime(s) + '</div>' +
         '</div>').join('') +
     '</div>' +
     (c.teacher ? '<div class="m-teacher">👤 ' + c.teacher + '</div>' : '');
