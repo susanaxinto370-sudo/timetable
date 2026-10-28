@@ -378,7 +378,7 @@ const COURSES = [
       {d:7, p:[3,4],  w:'15', room:'中2-2247', makeup:true},
     ] },
 
-  { name:'测控实习（第1分组）', teacher:'王、张、黄（分组指导）', color:'#475569', selfStudy:false,
+  { name:'测控实习（第1分组）', teacher:'王、张、黄（分组指导）', color:'#475569', selfStudy:false, isLab:true,
     sessions:[ {d:5, p:[1,4], w:'1-8', room:'工程坊A307'} ] },
 
   /* ---------- 实验课（教室信息来自实验安排长图） ---------- */
@@ -544,7 +544,7 @@ const state = {
   showSelf: store.showSelf,
 };
 
-function availableCourses(){ return HIDE_LABS ? COURSES.filter(c => !c.name.includes('实验')) : COURSES; }
+function availableCourses(){ return HIDE_LABS ? COURSES.filter(c => !c.isLab && !c.name.includes('实验')) : COURSES; }
 function visibleCourses(){ return availableCourses().filter(c => !c.selfStudy || state.showSelf); }
 function sessionsInWeek(w){
   const out = [];
